@@ -1,54 +1,96 @@
-import Button from "@/components/Button";
-import { pizzas, Pizza } from "@/data/pizzas";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   FlatList,
   Image,
   StyleSheet,
   Text,
   View,
-  Alert,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
+import { Product } from "@/types/product";
+
+const API_URL = "https://fakestoreapi.com/products";
 
 export default function HomeScreen() {
-  const handleAdicionarItem = (pizza: Pizza) => {
-    Alert.alert(
-      "Item Adicionado!",
-      `${pizza.nome} foi adicionado ao carrinho.`,
-      [{ text: "OK" }]
-    );
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchProducts = async () => {
+    try {
+      const response = await fetch(API_URL);
+      const data = await response.json();
+      setProducts(data);
+    } catch (error) {
+      console.error("Erro ao buscar produtos:", error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
 
-  const renderItem = ({ item }: { item: Pizza }) => (
-    <View style={styles.itemContainer}>
-      <Image source={{ uri: item.imagem }} style={styles.imagem} />
-      <View style={styles.textContainer}>
-        <Text style={styles.nomeProduto}>{item.nome}</Text>
-        <Text style={styles.descricao}>{item.descricao}</Text>
-        <Text style={styles.valor}>R$ {item.valor.toFixed(2)}</Text>
-      </View>
-      <View style={styles.botaoContainer}>
-        <Button
-          title="Adicionar Item"
-          variant="primary"
-          onPress={() => handleAdicionarItem(item)}
-        />
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchProducts();
+  };
+
+  const renderItem = ({ item }: { item: Product }) => (
+    <View style={styles.cardContainer}>
+      <Image source={{ uri: item.image }} style={styles.productImage} />
+      
+      <View style={styles.textContent}>
+        <Text style={styles.title} numberOfLines={2}>
+          {item.title}
+        </Text>
+        
+        <Text style={styles.price}>$ {item.price.toFixed(2)}</Text>
+        
+        <Text style={styles.description} numberOfLines={2}>
+          {item.description}
+        </Text>
+        
+        <Text style={styles.category}>{item.category}</Text>
+        
+        <View style={styles.ratingContainer}>
+          <Text style={styles.ratingLabel}>Avaliação:</Text>
+          <Text style={styles.ratingValue}>
+            ⭐ {item.rating.rate.toFixed(1)} ({item.rating.count} avaliações)
+          </Text>
+        </View>
       </View>
     </View>
   );
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#6366F1" />
+        <Text style={styles.loadingText}>Carregando produtos...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>🍕 Bem-vindo a Pizzaria Paquito</Text>
-        <Text style={styles.subtitle}>Cardápio de Pizzas</Text>
+        <Text style={styles.headerTitle}>🛍️ Loja de Produtos</Text>
+        <Text style={styles.headerSubtitle}>Explore nossa coleção</Text>
       </View>
+      
       <FlatList
-        data={pizzas}
+        data={products}
         renderItem={renderItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       />
     </View>
   );
@@ -57,31 +99,43 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFF5E6",
+    backgroundColor: "#F5F7FA",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F5F7FA",
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#64748B",
+    fontWeight: "500",
   },
   header: {
-    padding: 20,
-    paddingTop: 50,
-    backgroundColor: "#D32F2F",
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
+    padding: 24,
+    paddingTop: 60,
+    backgroundColor: "#6366F1",
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
     shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
   },
-  title: {
-    fontSize: 32,
+  headerTitle: {
+    fontSize: 28,
     fontWeight: "800",
     color: "#FFFFFF",
-    marginBottom: 4,
+    marginBottom: 6,
     textAlign: "center",
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
-  subtitle: {
-    fontSize: 18,
-    color: "#FFE0B2",
+  headerSubtitle: {
+    fontSize: 16,
+    color: "#E0E7FF",
     textAlign: "center",
     fontWeight: "500",
   },
@@ -89,50 +143,75 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 32,
   },
-  itemContainer: {
+  cardContainer: {
     backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    marginBottom: 20,
+    padding: 18,
+    shadowColor: "#6366F1",
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  productImage: {
+    width: "100%",
+    height: 240,
     borderRadius: 16,
     marginBottom: 16,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
-    borderWidth: 1,
-    borderColor: "#FFE0B2",
+    backgroundColor: "#F3F4F6",
+    resizeMode: "contain",
   },
-  imagem: {
-    width: "100%",
-    height: 200,
-    borderRadius: 12,
-    marginBottom: 12,
-    backgroundColor: "#F5F5F5",
+  textContent: {
+    gap: 10,
   },
-  textContainer: {
-    marginBottom: 16,
-  },
-  nomeProduto: {
-    fontSize: 22,
+  title: {
+    fontSize: 18,
     fontWeight: "700",
-    color: "#D32F2F",
-    marginBottom: 8,
+    color: "#1F2937",
+    lineHeight: 24,
+    letterSpacing: 0.3,
+  },
+  price: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: "#10B981",
     letterSpacing: 0.5,
   },
-  descricao: {
-    fontSize: 15,
-    color: "#616161",
-    marginBottom: 12,
-    lineHeight: 22,
+  description: {
+    fontSize: 14,
+    color: "#6B7280",
+    lineHeight: 20,
     textAlign: "justify",
   },
-  valor: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#2E7D32",
-    letterSpacing: 0.5,
+  category: {
+    fontSize: 13,
+    color: "#6366F1",
+    fontWeight: "600",
+    textTransform: "capitalize",
+    backgroundColor: "#EEF2FF",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+    overflow: "hidden",
   },
-  botaoContainer: {
-    marginTop: 8,
+  ratingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+    gap: 8,
+  },
+  ratingLabel: {
+    fontSize: 14,
+    color: "#6B7280",
+    fontWeight: "500",
+  },
+  ratingValue: {
+    fontSize: 14,
+    color: "#F59E0B",
+    fontWeight: "700",
   },
 });
